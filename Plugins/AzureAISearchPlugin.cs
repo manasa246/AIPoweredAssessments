@@ -29,7 +29,7 @@ public class AzureAISearchPlugin
         ReadOnlyMemory<float> embedding = await _textEmbeddingGenerationService.GenerateEmbeddingAsync(query);
 
         // Get client for search operations
-        SearchClient searchClient = _indexClient.GetSearchClient("vector-1720071593351");
+        SearchClient searchClient = _indexClient.GetSearchClient("vector-1726742637493");
 
         // Configure request parameters
         VectorizedQuery vectorQuery = new(embedding);

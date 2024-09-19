@@ -27,10 +27,10 @@ kernelBuilder.Services.AddSingleton<ITextEmbeddingGenerationService, OpenAITextE
 kernelBuilder.Services.AddSingleton<SearchIndexClient>((_) => new SearchIndexClient(endpoint, keyCredential));
 
 // Embedding generation service to convert string query to vector
-kernelBuilder.AddAzureOpenAITextEmbeddingGeneration("ada", Environment.GetEnvironmentVariable("AZURE_OAI_ENDPOINT")!, Environment.GetEnvironmentVariable("AZURE_OAI_APIKEY")!);
+kernelBuilder.AddAzureOpenAITextEmbeddingGeneration("hack-text-emb", Environment.GetEnvironmentVariable("AZURE_OAI_ENDPOINT")!, Environment.GetEnvironmentVariable("AZURE_OAI_APIKEY")!);
 
 // Chat completion service to ask questions based on data from Azure AI Search index.
-kernelBuilder.AddAzureOpenAIChatCompletion("gpt4o", Environment.GetEnvironmentVariable("AZURE_OAI_ENDPOINT")!, Environment.GetEnvironmentVariable("AZURE_OAI_APIKEY")!);
+kernelBuilder.AddAzureOpenAIChatCompletion("hack-gpt", Environment.GetEnvironmentVariable("AZURE_OAI_ENDPOINT")!, Environment.GetEnvironmentVariable("AZURE_OAI_APIKEY")!);
 
 // Register Azure AI Search Plugin
 kernelBuilder.Plugins.AddFromType<AzureAISearchPlugin>();
@@ -40,7 +40,7 @@ var kernel = kernelBuilder.Build();
 
 Console.WriteLine("Creating AzureAI agent...");
 
-OpenAIAssistantDefinition definition = new(modelId: "gpt4o");
+OpenAIAssistantDefinition definition = new(modelId: "hack-gpt");
 
 OpenAIAssistantAgent agent =
 await OpenAIAssistantAgent.CreateAsync(
@@ -48,7 +48,7 @@ await OpenAIAssistantAgent.CreateAsync(
     clientProvider: OpenAIClientProvider.ForAzureOpenAI(Environment.GetEnvironmentVariable("AZURE_OAI_APIKEY")!, new Uri(Environment.GetEnvironmentVariable("AZURE_OAI_ENDPOINT")!)),
     new(definition.ModelId)
     {
-        Name = "AzureAI",
+        Name = "gpt-4o",
         Description = Descriptions.AzureAI,
         Instructions = Instructions.AzureAI,
         EnableCodeInterpreter = true,
@@ -57,6 +57,7 @@ await OpenAIAssistantAgent.CreateAsync(
 var thread = await agent.CreateThreadAsync();
 
 Console.WriteLine("[COPILOT] : How can I help you today?");
+var chatHistory = new List<ChatMessageContent>();
 
 while (true)
 {
@@ -67,14 +68,24 @@ while (true)
         break;
     }
 
+    if (string.IsNullOrWhiteSpace(input))
+    {
+        continue;
+    }
+
     var chat = new AgentGroupChat(agent);
 
-    chat.AddChatMessage(new ChatMessageContent(AuthorRole.User, input));
+    chatHistory.Add(new ChatMessageContent(AuthorRole.User, input));
 
-    Console.WriteLine($"# {AuthorRole.User}: '{input}'");
+    foreach (var message in chatHistory)
+    {
+        chat.AddChatMessage(message);
+    }
 
     await foreach (var content in chat.InvokeAsync(agent))
     {
         Console.WriteLine($"# {content.Role} - {content.AuthorName ?? "*"}: '{content.Content}'");
+
+        chatHistory.Add(content);
     }
 }
